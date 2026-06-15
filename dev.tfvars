@@ -1,0 +1,6 @@
+environment = "dev"
+location    = "canadacentral"
+project_name = "appenv"
+owner       = "app-team"
+cost_center = "cloud-dev"
+
