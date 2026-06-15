@@ -1,0 +1,155 @@
+trigger:
+  branches:
+    include:
+      - main
+
+variables:
+  terraformVersion: '1.6.6'
+  backendResourceGroup: 'tfstate-rg'
+  backendStorageAccount: 'tfstatecloudx3511'
+  backendContainer: 'tfstate'
+  backendKey: 'appenv-$(environment).tfstate'
+
+stages:
+- stage: Dev_Plan
+  displayName: Dev Terraform Plan
+  variables:
+    environment: dev
+  jobs:
+  - job: Plan
+    steps:
+    - checkout: self
+
+    - task: TerraformInstaller@1
+      inputs:
+        terraformVersion: $(terraformVersion)
+
+    - task: TerraformTaskV4@4
+      displayName: Terraform Init
+      inputs:
+        provider: azurerm
+        command: init
+        backendServiceArm: 'cloudx-azure-sc'
+        backendAzureRmResourceGroupName: $(backendResourceGroup)
+        backendAzureRmStorageAccountName: $(backendStorageAccount)
+        backendAzureRmContainerName: $(backendContainer)
+        backendAzureRmKey: $(backendKey)
+
+    - task: TerraformTaskV4@4
+      displayName: Terraform Validate
+      inputs:
+        provider: azurerm
+        command: validate
+
+    - task: TerraformTaskV4@4
+      displayName: Terraform Plan Dev
+      inputs:
+        provider: azurerm
+        command: plan
+        environmentServiceNameAzureRM: 'cloudx-azure-sc'
+        commandOptions: '-var-file="dev.tfvars" -out=tfplan'
+
+- stage: Dev_Apply
+  displayName: Dev Terraform Apply
+  dependsOn: Dev_Plan
+  jobs:
+  - deployment: ApplyDev
+    environment: dev
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Init
+            inputs:
+              provider: azurerm
+              command: init
+              backendServiceArm: 'cloudx-azure-sc'
+              backendAzureRmResourceGroupName: $(backendResourceGroup)
+              backendAzureRmStorageAccountName: $(backendStorageAccount)
+              backendAzureRmContainerName: $(backendContainer)
+              backendAzureRmKey: 'appenv-dev.tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Apply Dev
+            inputs:
+              provider: azurerm
+              command: apply
+              environmentServiceNameAzureRM: 'cloudx-azure-sc'
+              commandOptions: '-var-file="dev.tfvars" -auto-approve'
+
+- stage: Test_Apply
+  displayName: Test Terraform Apply
+  dependsOn: Dev_Apply
+  jobs:
+  - deployment: ApplyTest
+    environment: test
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Init
+            inputs:
+              provider: azurerm
+              command: init
+              backendServiceArm: 'cloudx-azure-sc'
+              backendAzureRmResourceGroupName: $(backendResourceGroup)
+              backendAzureRmStorageAccountName: $(backendStorageAccount)
+              backendAzureRmContainerName: $(backendContainer)
+              backendAzureRmKey: 'appenv-test.tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Apply Test
+            inputs:
+              provider: azurerm
+              command: apply
+              environmentServiceNameAzureRM: 'cloudx-azure-sc'
+              commandOptions: '-var-file="test.tfvars" -auto-approve'
+
+- stage: Prod_Apply
+  displayName: Prod Terraform Apply
+  dependsOn: Test_Apply
+  jobs:
+  - deployment: ApplyProd
+    environment: prod
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: $(terraformVersion)
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Init
+            inputs:
+              provider: azurerm
+              command: init
+              backendServiceArm: 'cloudx-azure-sc'
+              backendAzureRmResourceGroupName: $(backendResourceGroup)
+              backendAzureRmStorageAccountName: $(backendStorageAccount)
+              backendAzureRmContainerName: $(backendContainer)
+              backendAzureRmKey: 'appenv-prod.tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: Terraform Apply Prod
+            inputs:
+              provider: azurerm
+              command: apply
+              environmentServiceNameAzureRM: 'cloudx-azure-sc'
+              commandOptions: '-var-file="prod.tfvars" -auto-approve'

@@ -1,6 +1,6 @@
-environment = "dev"
-location    = "canadacentral"
-project_name = "appenv"
-owner       = "app-team"
-cost_center = "cloud-dev"
-
+environment           = "dev"
+location              = "canadacentral"
+project_name          = "appenv"
+owner                 = "app-team"
+cost_center           = "cloud-dev"
+admin_group_object_id = "2f8835e9-b14f-4e75-ba44-c7a085847f03"
